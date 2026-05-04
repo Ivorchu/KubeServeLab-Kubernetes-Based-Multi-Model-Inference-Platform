@@ -1,0 +1,8 @@
+[
+  { "model": "text-small", "input": "this movie was absolutely fantastic" },
+  { "model": "text-small", "input": "terrible experience, would not recommend" },
+  { "model": "text-small", "input": "it was okay, nothing special" },
+  { "model": "text-large", "input": "a detailed and lengthy review of the product covering many aspects" },
+  { "model": "text-large", "input": "an extensive analysis of the film's cinematography and narrative structure" },
+  { "model": "image-small", "input": "base64_encoded_image_placeholder" }
+]

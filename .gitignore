@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.python-version
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Ruff
+.ruff_cache/
+
+# Environment
+.env
+*.env.local
+
+# Docker
+*.tar
+
+# Models (large binary files — download via scripts)
+models/**/*.onnx
+models/**/*.bin
+models/**/*.pt
+models/**/*.pth
+models/**/tokenizer/
+models/**/vocab.txt
+models/**/tokenizer_config.json
+models/**/config.json
+
+# Kubernetes secrets (never commit)
+infra/k8s/*-secret.yaml
+
+# Helm
+helm/*/charts/
+helm/*/Chart.lock
+
+# Experiment results (generated output)
+docs/results/*.json
+docs/results/summary.md
+
+# Grafana provisioning state
+infra/grafana/data/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

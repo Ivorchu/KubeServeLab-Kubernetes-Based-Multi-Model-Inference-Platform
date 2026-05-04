@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: kubeservelab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      containers:
+        - name: worker
+          image: kubeservelab/worker:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: kubeservelab-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"

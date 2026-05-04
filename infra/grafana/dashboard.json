@@ -1,0 +1,90 @@
+{
+  "title": "KubeServeLab",
+  "uid": "kubeservelab",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["kubeservelab"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(api_requests_total[1m])) by (model, status)",
+          "legendFormat": "{{model}} / {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "API Latency Percentiles (s)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(api_request_latency_seconds_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(api_request_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(api_request_latency_seconds_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "In-Flight Requests",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(api_queue_length)",
+          "legendFormat": "In-Flight"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Timeout Rate",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 8, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(api_timeouts_total[5m]))",
+          "legendFormat": "Timeouts/s"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Worker Throughput (jobs/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(worker_jobs_total[1m])) by (model, status)",
+          "legendFormat": "{{model}} / {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Worker Inference Latency (s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(worker_inference_latency_seconds_bucket[5m])) by (model)",
+          "legendFormat": "p95 {{model}}"
+        }
+      ]
+    }
+  ]
+}
