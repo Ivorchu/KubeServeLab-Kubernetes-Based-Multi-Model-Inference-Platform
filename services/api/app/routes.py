@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from shared.logging import get_logger
 from shared.protocol import (
+    INCOMING_QUEUE,
     InferenceJob,
     InferenceResult,
     JobStatus,
     generate_request_id,
-    job_queue_key,
     result_key,
 )
 
@@ -46,7 +46,7 @@ async def predict(
         created_at=start_time,
     )
 
-    await redis.lpush(job_queue_key(body.model), job.to_json())
+    await redis.lpush(INCOMING_QUEUE, job.to_json())
     QUEUE_LENGTH.labels(model=body.model).inc()
     logger.info("queued job=%s model=%s", request_id, body.model)
 

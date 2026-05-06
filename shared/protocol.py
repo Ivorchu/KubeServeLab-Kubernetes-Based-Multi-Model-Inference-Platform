@@ -54,6 +54,8 @@ def generate_request_id() -> str:
 
 
 # Redis key helpers
+INCOMING_QUEUE = "queue:incoming"
+
 def job_queue_key(model: str) -> str:
     return f"queue:{model}"
 
