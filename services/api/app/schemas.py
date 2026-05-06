@@ -35,3 +35,21 @@ class StatusResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     redis: str
+
+
+class DLQJobResponse(BaseModel):
+    request_id: str
+    model: str
+    input: Any
+    created_at: float
+    retry_count: int
+
+
+class DLQListResponse(BaseModel):
+    count: int
+    jobs: list[DLQJobResponse]
+
+
+class ReplayResponse(BaseModel):
+    request_id: str
+    status: str

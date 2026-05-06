@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
+from .admin import router as admin_router
 from .routes import router
 
 app = FastAPI(
@@ -10,6 +11,7 @@ app = FastAPI(
 )
 
 app.include_router(router)
+app.include_router(admin_router)
 
 # Prometheus metrics endpoint
 metrics_app = make_asgi_app()

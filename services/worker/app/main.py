@@ -4,7 +4,7 @@ import redis
 from prometheus_client import start_http_server
 
 from shared.logging import get_logger
-from shared.protocol import InferenceJob, JobStatus, job_queue_key, result_key
+from shared.protocol import DLQ_KEY, InferenceJob, JobStatus, job_queue_key, result_key
 
 from . import config
 from .inference import run_inference
@@ -55,6 +55,9 @@ def main() -> None:
                 job.request_id, job.retry_count + 1, config.MAX_RETRIES,
             )
         else:
+            if result.status == JobStatus.FAILED:
+                redis_client.lpush(DLQ_KEY, job.to_json())
+                logger.warning("dlq job=%s after %d attempts", job.request_id, job.retry_count)
             redis_client.setex(result_key(job.request_id), config.RESULT_TTL, result.to_json())
 
     logger.info("worker shut down cleanly")
