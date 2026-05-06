@@ -6,6 +6,7 @@ import redis
 from shared.logging import get_logger
 from shared.protocol import (
     INCOMING_QUEUE,
+    RETRY_QUEUE,
     InferenceJob,
     InferenceResult,
     JobStatus,
@@ -35,13 +36,15 @@ def main() -> None:
     logger.info("scheduler started, listening on %s", INCOMING_QUEUE)
 
     while _running:
+        _requeue_ready_retries(r)
+
         item = r.brpop(INCOMING_QUEUE, timeout=config.POLL_TIMEOUT)
         if item is None:
             continue
 
         _, raw = item
         job = InferenceJob.from_json(raw)
-        logger.info("received job=%s model=%s", job.request_id, job.model)
+        logger.info("received job=%s model=%s attempt=%d", job.request_id, job.model, job.retry_count)
 
         try:
             target = route_job(job.model, job.input)
@@ -50,13 +53,13 @@ def main() -> None:
             _write_error(r, job, str(exc))
             continue
 
-        # If "auto" was resolved to a real model, update the job before forwarding
         if job.model != target:
             job = InferenceJob(
                 request_id=job.request_id,
                 model=target,
                 input=job.input,
                 created_at=job.created_at,
+                retry_count=job.retry_count,
             )
 
         dest = job_queue_key(target)
@@ -64,6 +67,25 @@ def main() -> None:
         logger.info("routed job=%s → %s", job.request_id, dest)
 
     logger.info("scheduler shut down cleanly")
+
+
+def _requeue_ready_retries(r: redis.Redis) -> None:
+    """Move any retry-queue jobs whose backoff has elapsed back to queue:incoming."""
+    now = time.time()
+    while True:
+        ready = r.zrangebyscore(RETRY_QUEUE, "-inf", now, start=0, num=10)
+        if not ready:
+            break
+        pipe = r.pipeline()
+        for raw in ready:
+            pipe.zrem(RETRY_QUEUE, raw)
+            pipe.lpush(INCOMING_QUEUE, raw)
+        pipe.execute()
+        for raw in ready:
+            job = InferenceJob.from_json(raw)
+            logger.info("requeued retry job=%s attempt=%d", job.request_id, job.retry_count)
+        if len(ready) < 10:
+            break
 
 
 def _write_error(r: redis.Redis, job: InferenceJob, error: str) -> None:
@@ -75,7 +97,7 @@ def _write_error(r: redis.Redis, job: InferenceJob, error: str) -> None:
         status=JobStatus.FAILED,
         error=error,
     )
-    r.setex(result_key(job.request_id), config.POLL_TIMEOUT * 300, result.to_json())
+    r.setex(result_key(job.request_id), config.RESULT_TTL, result.to_json())
 
 
 if __name__ == "__main__":

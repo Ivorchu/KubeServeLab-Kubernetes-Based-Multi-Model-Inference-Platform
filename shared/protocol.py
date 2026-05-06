@@ -19,6 +19,7 @@ class InferenceJob:
     model: str
     input: Any
     created_at: float
+    retry_count: int = 0
 
     def to_json(self) -> str:
         return json.dumps(asdict(self))
@@ -55,6 +56,7 @@ def generate_request_id() -> str:
 
 # Redis key helpers
 INCOMING_QUEUE = "queue:incoming"
+RETRY_QUEUE = "queue:retry"
 
 def job_queue_key(model: str) -> str:
     return f"queue:{model}"

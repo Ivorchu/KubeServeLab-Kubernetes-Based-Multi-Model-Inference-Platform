@@ -4,11 +4,12 @@ import redis
 from prometheus_client import start_http_server
 
 from shared.logging import get_logger
-from shared.protocol import InferenceJob, job_queue_key, result_key
+from shared.protocol import InferenceJob, JobStatus, job_queue_key, result_key
 
 from . import config
 from .inference import run_inference
 from .metrics import INFERENCE_LATENCY, JOBS_PROCESSED
+from .retry import enqueue_retry
 
 logger = get_logger("worker.main")
 
@@ -47,7 +48,14 @@ def main() -> None:
         JOBS_PROCESSED.labels(model=job.model, status=result.status.value).inc()
         INFERENCE_LATENCY.labels(model=job.model).observe(result.latency_ms / 1000)
 
-        redis_client.setex(result_key(job.request_id), config.RESULT_TTL, result.to_json())
+        if result.status == JobStatus.FAILED and job.retry_count < config.MAX_RETRIES:
+            enqueue_retry(redis_client, job, config.RETRY_BASE_DELAY_MS)
+            logger.info(
+                "retry scheduled job=%s attempt=%d/%d",
+                job.request_id, job.retry_count + 1, config.MAX_RETRIES,
+            )
+        else:
+            redis_client.setex(result_key(job.request_id), config.RESULT_TTL, result.to_json())
 
     logger.info("worker shut down cleanly")
 

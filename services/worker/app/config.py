@@ -8,3 +8,5 @@ SUPPORTED_MODELS: list[str] = os.getenv(
 ).split(",")
 POLL_TIMEOUT: int = int(os.getenv("POLL_TIMEOUT", "1"))
 METRICS_PORT: int = int(os.getenv("WORKER_METRICS_PORT", "9090"))
+MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "3"))
+RETRY_BASE_DELAY_MS: int = int(os.getenv("RETRY_BASE_DELAY_MS", "500"))
