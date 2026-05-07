@@ -1,9 +1,10 @@
 import asyncio
 import time
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.logging import get_logger
 from shared.protocol import (
@@ -16,6 +17,9 @@ from shared.protocol import (
 )
 
 from . import config
+from .circuit_breaker import CircuitBreaker
+from .database import get_db
+from .db_models import RequestLog
 from .metrics import QUEUE_LENGTH, REQUEST_COUNT, REQUEST_LATENCY, TIMEOUT_COUNT
 from .schemas import HealthResponse, PredictRequest, PredictResponse, StatusResponse
 
@@ -31,11 +35,42 @@ async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:
         await client.aclose()
 
 
+async def _log_request(
+    db: AsyncSession,
+    request_id: str,
+    model: str,
+    status: str,
+    latency_ms: Optional[float],
+    error: Optional[str],
+) -> None:
+    try:
+        log = RequestLog(
+            request_id=request_id,
+            model=model,
+            status=status,
+            latency_ms=latency_ms,
+            error=error,
+        )
+        db.add(log)
+        await db.commit()
+    except Exception as exc:
+        logger.error("audit log failed request_id=%s: %s", request_id, exc)
+
+
 @router.post("/predict", response_model=PredictResponse)
 async def predict(
     body: PredictRequest,
     redis: aioredis.Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_db),
 ):
+    cb = CircuitBreaker(redis, body.model, config.CB_FAILURE_THRESHOLD, config.CB_RECOVERY_TIMEOUT)
+
+    if await cb.is_open():
+        raise HTTPException(
+            status_code=503,
+            detail=f"Circuit open for model '{body.model}' — service degraded, try again later",
+        )
+
     request_id = generate_request_id()
     start_time = time.time()
 
@@ -50,7 +85,6 @@ async def predict(
     QUEUE_LENGTH.labels(model=body.model).inc()
     logger.info("queued job=%s model=%s", request_id, body.model)
 
-    # Poll for the worker result until timeout
     result_redis_key = result_key(request_id)
     deadline = time.time() + config.REQUEST_TIMEOUT
 
@@ -59,6 +93,14 @@ async def predict(
         if raw:
             result = InferenceResult.from_json(raw)
             elapsed = time.time() - start_time
+
+            if result.status == JobStatus.FAILED:
+                await cb.record_failure()
+            else:
+                await cb.record_success()
+
+            await _log_request(db, request_id, body.model, result.status.value, result.latency_ms, result.error)
+
             REQUEST_LATENCY.labels(model=body.model).observe(elapsed)
             REQUEST_COUNT.labels(model=body.model, status=result.status.value).inc()
             QUEUE_LENGTH.labels(model=body.model).dec()
@@ -72,6 +114,7 @@ async def predict(
             )
         await asyncio.sleep(config.POLL_INTERVAL)
 
+    await _log_request(db, request_id, body.model, "timeout", None, "request timed out")
     TIMEOUT_COUNT.labels(model=body.model).inc()
     REQUEST_COUNT.labels(model=body.model, status="timeout").inc()
     QUEUE_LENGTH.labels(model=body.model).dec()

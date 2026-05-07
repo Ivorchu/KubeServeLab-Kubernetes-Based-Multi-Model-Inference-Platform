@@ -11,3 +11,8 @@ data:
   SUPPORTED_MODELS: "text-small,text-large,image-small"
   POLL_TIMEOUT: "1"
   WORKER_METRICS_PORT: "9090"
+  DATABASE_URL: "postgresql+asyncpg://kubeservelab:kubeservelab@postgres:5432/kubeservelab"
+  CB_FAILURE_THRESHOLD: "5"
+  CB_RECOVERY_TIMEOUT: "60"
+  MAX_RETRIES: "3"
+  RETRY_BASE_DELAY_MS: "500"

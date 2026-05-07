@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from shared.protocol import JobStatus
 
@@ -53,3 +54,31 @@ class DLQListResponse(BaseModel):
 class ReplayResponse(BaseModel):
     request_id: str
     status: str
+
+
+class CircuitBreakerStatus(BaseModel):
+    model: str
+    state: str
+    failures: int
+    opened_at: Optional[float] = None
+
+
+class CircuitBreakerListResponse(BaseModel):
+    circuit_breakers: list[CircuitBreakerStatus]
+
+
+class RequestLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    request_id: str
+    model: str
+    status: str
+    latency_ms: Optional[float] = None
+    error: Optional[str] = None
+    created_at: datetime
+
+
+class RequestLogListResponse(BaseModel):
+    count: int
+    requests: list[RequestLogResponse]
