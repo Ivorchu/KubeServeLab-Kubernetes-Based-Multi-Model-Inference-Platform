@@ -1,5 +1,7 @@
 import signal
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import redis
 
@@ -22,6 +24,21 @@ logger = get_logger("scheduler.main")
 _running = True
 
 
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, *args):
+        pass
+
+
+def _start_health_server(port: int) -> None:
+    server = HTTPServer(("", port), _HealthHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+
 def _handle_shutdown(signum, frame):
     global _running
     logger.info("shutdown signal received")
@@ -32,8 +49,10 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _handle_shutdown)
     signal.signal(signal.SIGINT, _handle_shutdown)
 
+    _start_health_server(config.HEALTH_PORT)
+
     r = redis.from_url(config.REDIS_URL, decode_responses=True)
-    logger.info("scheduler started, listening on %s", INCOMING_QUEUE)
+    logger.info("scheduler started, health on :%d, listening on %s", config.HEALTH_PORT, INCOMING_QUEUE)
 
     while _running:
         _requeue_ready_retries(r)

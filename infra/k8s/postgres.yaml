@@ -47,6 +47,11 @@ spec:
               command: ["pg_isready", "-U", "kubeservelab"]
             initialDelaySeconds: 5
             periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "kubeservelab"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
           resources:
             requests:
               memory: "256Mi"

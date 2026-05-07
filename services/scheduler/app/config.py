@@ -6,5 +6,5 @@ SUPPORTED_MODELS: list[str] = os.getenv(
 ).split(",")
 POLL_TIMEOUT: int = int(os.getenv("POLL_TIMEOUT", "1"))
 RESULT_TTL: int = int(os.getenv("RESULT_TTL", "300"))
-# Input length threshold (chars) for routing "auto" text jobs to text-large
 TEXT_LARGE_THRESHOLD: int = int(os.getenv("TEXT_LARGE_THRESHOLD", "200"))
+HEALTH_PORT: int = int(os.getenv("SCHEDULER_HEALTH_PORT", "8080"))

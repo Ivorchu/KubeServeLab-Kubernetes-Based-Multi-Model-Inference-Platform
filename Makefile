@@ -1,4 +1,5 @@
-.PHONY: up down build logs scale-workers test lint format health predict clean load-test
+.PHONY: up down build logs scale-workers test lint format health predict clean load-test \
+        k8s-build k8s-load k8s-deploy k8s-status k8s-logs k8s-smoke k8s-delete
 
 # ── Docker Compose ──────────────────────────────────────────────────────────
 
@@ -75,6 +76,43 @@ load-test:
 load-test-headless:
 	locust -f load_tests/locustfile.py --host http://localhost:8000 \
 		--headless -u 20 -r 5 --run-time 60s
+
+# ── Kubernetes (kind) ─────────────────────────────────────────────────────────
+# Requires: kind, kubectl
+# One-time cluster setup: kind create cluster --name kubeservelab
+
+k8s-build:
+	docker build -t kubeservelab/api:latest -f services/api/Dockerfile .
+	docker build -t kubeservelab/worker:latest -f services/worker/Dockerfile .
+	docker build -t kubeservelab/scheduler:latest -f services/scheduler/Dockerfile .
+
+k8s-load:
+	kind load docker-image kubeservelab/api:latest --name kubeservelab
+	kind load docker-image kubeservelab/worker:latest --name kubeservelab
+	kind load docker-image kubeservelab/scheduler:latest --name kubeservelab
+
+k8s-deploy:
+	kubectl apply -f infra/k8s/namespace.yaml
+	kubectl apply -f infra/k8s/
+
+k8s-status:
+	kubectl get pods -n kubeservelab
+	kubectl get svc -n kubeservelab
+
+k8s-logs:
+	kubectl logs -n kubeservelab -l app=api --tail=50 --prefix
+	kubectl logs -n kubeservelab -l app=worker --tail=50 --prefix
+
+k8s-smoke:
+	kubectl port-forward -n kubeservelab svc/api 8000:80 &
+	sleep 2
+	curl -s http://localhost:8000/health
+	curl -s -X POST http://localhost:8000/predict \
+		-H "Content-Type: application/json" \
+		-d '{"model": "text-small", "input": "hello world"}'
+
+k8s-delete:
+	kubectl delete namespace kubeservelab
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
