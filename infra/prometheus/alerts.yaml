@@ -1,0 +1,44 @@
+groups:
+  - name: kubeservelab
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum by (model) (rate(api_requests_total{status=~"failed|timeout"}[5m]))
+          /
+          sum by (model) (rate(api_requests_total[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for model {{ $labels.model }}"
+          description: "Error rate exceeds 10% for model {{ $labels.model }} (current: {{ $value | humanizePercentage }})"
+
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, model) (rate(api_request_latency_seconds_bucket[5m]))
+          ) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 latency for model {{ $labels.model }}"
+          description: "p99 latency is {{ $value | humanizeDuration }} for model {{ $labels.model }}"
+
+      - alert: CircuitBreakerOpen
+        expr: api_circuit_breaker_open == 1
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker open for model {{ $labels.model }}"
+          description: "Model {{ $labels.model }} circuit breaker is open — requests are being rejected with 503"
+
+      - alert: WorkerInactive
+        expr: sum(rate(worker_jobs_total[5m])) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No worker activity"
+          description: "Workers have processed 0 jobs in the last 5 minutes — queue may be stalled"

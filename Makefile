@@ -1,5 +1,6 @@
 .PHONY: up down build logs scale-workers test lint format health predict clean load-test \
-        k8s-build k8s-load k8s-deploy k8s-status k8s-logs k8s-smoke k8s-delete
+        k8s-build k8s-load k8s-deploy k8s-status k8s-logs k8s-smoke k8s-delete \
+        k8s-monitoring-up k8s-monitoring-down k8s-grafana k8s-prometheus
 
 # ── Docker Compose ──────────────────────────────────────────────────────────
 
@@ -113,6 +114,20 @@ k8s-smoke:
 
 k8s-delete:
 	kubectl delete namespace kubeservelab
+
+k8s-monitoring-up:
+	kubectl apply -f infra/k8s/monitoring.yaml
+
+k8s-monitoring-down:
+	kubectl delete -f infra/k8s/monitoring.yaml
+
+# Open Grafana at http://localhost:3000  (admin/admin)
+k8s-grafana:
+	kubectl port-forward -n kubeservelab svc/grafana 3000:3000
+
+# Open Prometheus at http://localhost:9090
+k8s-prometheus:
+	kubectl port-forward -n kubeservelab svc/prometheus 9090:9090
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 

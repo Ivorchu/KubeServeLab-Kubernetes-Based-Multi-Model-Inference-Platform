@@ -20,7 +20,7 @@ from . import config
 from .circuit_breaker import CircuitBreaker
 from .database import get_db
 from .db_models import RequestLog
-from .metrics import QUEUE_LENGTH, REQUEST_COUNT, REQUEST_LATENCY, TIMEOUT_COUNT
+from .metrics import CB_OPEN, QUEUE_LENGTH, REQUEST_COUNT, REQUEST_LATENCY, TIMEOUT_COUNT
 from .schemas import HealthResponse, PredictRequest, PredictResponse, StatusResponse
 
 router = APIRouter()
@@ -66,6 +66,7 @@ async def predict(
     cb = CircuitBreaker(redis, body.model, config.CB_FAILURE_THRESHOLD, config.CB_RECOVERY_TIMEOUT)
 
     if await cb.is_open():
+        CB_OPEN.labels(model=body.model).set(1)
         raise HTTPException(
             status_code=503,
             detail=f"Circuit open for model '{body.model}' — service degraded, try again later",
@@ -96,8 +97,10 @@ async def predict(
 
             if result.status == JobStatus.FAILED:
                 await cb.record_failure()
+                CB_OPEN.labels(model=body.model).set(1 if await cb.is_open() else 0)
             else:
                 await cb.record_success()
+                CB_OPEN.labels(model=body.model).set(0)
 
             await _log_request(db, request_id, body.model, result.status.value, result.latency_ms, result.error)
 

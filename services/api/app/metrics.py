@@ -24,3 +24,9 @@ TIMEOUT_COUNT = Counter(
     "Requests that timed out waiting for a worker",
     ["model"],
 )
+
+CB_OPEN = Gauge(
+    "api_circuit_breaker_open",
+    "1 if the circuit breaker is open for this model, 0 if closed",
+    ["model"],
+)
