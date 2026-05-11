@@ -50,6 +50,7 @@ helm/*/Chart.lock
 # Experiment results (generated output)
 docs/results/*.json
 docs/results/summary.md
+experiments/
 
 # Grafana provisioning state
 infra/grafana/data/

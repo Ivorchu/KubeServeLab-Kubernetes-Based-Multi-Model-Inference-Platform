@@ -1,6 +1,7 @@
 .PHONY: up down build logs scale-workers test lint format health predict clean load-test \
         k8s-build k8s-load k8s-deploy k8s-status k8s-logs k8s-smoke k8s-delete \
-        k8s-monitoring-up k8s-monitoring-down k8s-grafana k8s-prometheus
+        k8s-monitoring-up k8s-monitoring-down k8s-grafana k8s-prometheus \
+        experiment experiment-baseline experiment-burst experiment-overload
 
 # ── Docker Compose ──────────────────────────────────────────────────────────
 
@@ -128,6 +129,21 @@ k8s-grafana:
 # Open Prometheus at http://localhost:9090
 k8s-prometheus:
 	kubectl port-forward -n kubeservelab svc/prometheus 9090:9090
+
+# ── Load experiments ──────────────────────────────────────────────────────────
+# Requires: stack running + Prometheus port-forwarded to :9090
+# Run all three scenarios sequentially and write experiments/<ts>/summary.md
+experiment:
+	python scripts/run_experiments.py
+
+experiment-baseline:
+	python scripts/run_experiments.py --experiment baseline
+
+experiment-burst:
+	python scripts/run_experiments.py --experiment burst
+
+experiment-overload:
+	python scripts/run_experiments.py --experiment overload
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
