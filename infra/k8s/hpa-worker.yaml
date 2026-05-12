@@ -1,28 +1,31 @@
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
+# KEDA ScaledObject replaces the CPU-based HPA.
+# Workers scale 0→10 based on Redis queue depth across all model queues.
+# Requires KEDA installed in the cluster: make k8s-keda-install
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
 metadata:
-  name: worker-hpa
+  name: worker-scaledobject
   namespace: kubeservelab
 spec:
   scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
     name: worker
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-  # Phase 7 stretch goal: scale on Redis queue length via custom metrics adapter
-  # metrics:
-  #   - type: External
-  #     external:
-  #       metric:
-  #         name: redis_queue_length
-  #       target:
-  #         type: AverageValue
-  #         averageValue: "5"
+  minReplicaCount: 0   # scale to zero when all queues are empty
+  maxReplicaCount: 10
+  pollingInterval: 5   # check queue depth every 5s
+  cooldownPeriod: 30   # wait 30s after queues empty before scaling down
+  triggers:
+    - type: redis
+      metadata:
+        address: redis.kubeservelab.svc.cluster.local:6379
+        listName: queue:text-small
+        listLength: "5"   # target 5 queued jobs per replica
+    - type: redis
+      metadata:
+        address: redis.kubeservelab.svc.cluster.local:6379
+        listName: queue:text-large
+        listLength: "5"
+    - type: redis
+      metadata:
+        address: redis.kubeservelab.svc.cluster.local:6379
+        listName: queue:image-small
+        listLength: "5"

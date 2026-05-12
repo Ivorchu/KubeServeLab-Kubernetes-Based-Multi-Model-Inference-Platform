@@ -1,6 +1,7 @@
 .PHONY: up down build logs scale-workers test lint format health predict clean load-test \
         k8s-build k8s-load k8s-deploy k8s-status k8s-logs k8s-smoke k8s-delete \
         k8s-monitoring-up k8s-monitoring-down k8s-grafana k8s-prometheus \
+        k8s-keda-install k8s-keda-status \
         experiment experiment-baseline experiment-burst experiment-overload
 
 # ── Docker Compose ──────────────────────────────────────────────────────────
@@ -115,6 +116,20 @@ k8s-smoke:
 
 k8s-delete:
 	kubectl delete namespace kubeservelab
+
+# ── KEDA ─────────────────────────────────────────────────────────────────────
+# Installs KEDA operator into the cluster (keda namespace), then applies the
+# ScaledObject so workers scale 0-10 based on Redis queue depth.
+KEDA_VERSION ?= 2.14.0
+
+k8s-keda-install:
+	kubectl apply --server-side -f https://github.com/kedacore/keda/releases/download/v$(KEDA_VERSION)/keda-$(KEDA_VERSION).yaml
+	kubectl rollout status deployment/keda-operator -n keda --timeout=120s
+	kubectl apply -f infra/k8s/hpa-worker.yaml
+
+k8s-keda-status:
+	kubectl get scaledobject -n kubeservelab
+	kubectl get hpa -n kubeservelab
 
 k8s-monitoring-up:
 	kubectl apply -f infra/k8s/monitoring.yaml
