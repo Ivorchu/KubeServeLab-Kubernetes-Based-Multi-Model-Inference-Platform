@@ -6,8 +6,24 @@ rule_files:
   - /etc/prometheus/alerts.yaml
 
 scrape_configs:
-  # Auto-discover pods in the kubeservelab namespace that have
-  # prometheus.io/scrape: "true" annotation.
+  # ── Docker Compose static targets ──────────────────────────────────────────
+  # Used when running via docker compose --profile monitoring up
+  - job_name: api
+    static_configs:
+      - targets: ["api:8000"]
+        labels:
+          app: api
+
+  - job_name: worker
+    static_configs:
+      - targets: ["worker:9090"]
+        labels:
+          app: worker
+
+  # ── Kubernetes pod auto-discovery ──────────────────────────────────────────
+  # Used when deployed to a Kubernetes cluster.
+  # Pods must have annotation prometheus.io/scrape: "true".
+  # This job silently no-ops in Docker Compose (no K8s API to connect to).
   - job_name: kubernetes-pods
     kubernetes_sd_configs:
       - role: pod
@@ -30,5 +46,5 @@ scrape_configs:
         target_label: app
       - source_labels: [__meta_kubernetes_pod_name]
         target_label: pod
-      - source_labels: [__meta_kubernetes_namespace]
+      - source_labels: [__meta_kubernetes_pod_name]
         target_label: namespace
